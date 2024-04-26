@@ -1,0 +1,12 @@
+[build]
+target = "avr-specs/avr-atmega328p.json"
+#rustflags = [
+#    "-C", "link-arg=-Tlink.x",
+#]
+
+[target.'cfg(target_arch = "avr")']
+runner = "ravedude nano -cb 57600 -P /dev/ttyUSB0"
+
+[unstable]
+build-std = ["core"]
+gc = true
