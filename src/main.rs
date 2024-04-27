@@ -39,20 +39,8 @@ fn main() -> ! {
     let mut serial = arduino_hal::default_serial!(dp, pins, 57600);
 
 
-    // println!("Hello, world!");
    ufmt::uwriteln!(&mut serial, "Start program! {} \r",1).unwrap_infallible();
 
-
-    // if let Some(loc) = info.location() {
-    //     ufmt::uwriteln!(
-    //         &mut serial,
-    //         "  At {}:{}:{}\r",
-    //         loc.file(),
-    //         loc.line(),
-    //         loc.column(),
-    //     )
-    //         .unwrap_infallible();
-    // }
     let mut sclk_pin = pins.d13.into_output();
     let mosi_pin = pins.d11.into_output();
     let miso_pin = pins.d12.into_pull_up_input();
@@ -103,6 +91,11 @@ fn main() -> ! {
     // let mut led = pins.d13.into_output();
     let mut count = 0;
     loop {
+        // let b = nb::block!(serial.read()).unwrap_infallible();
+        //
+        // ufmt::uwriteln!(&mut serial, "Got {}!\r", b).unwrap_infallible();
+
+
         count += 1;
         disp.clear(Rgb565::BLACK).unwrap();
         // let count_as_str = count.to_string();
@@ -119,6 +112,14 @@ fn main() -> ! {
         )
             .draw(&mut disp);
 
+        // let b_char = core::str::from_utf8(&[b]).unwrap().trim();
+        // _=Text::new(
+        //
+        //     b_char,
+        //     Point::new(15, 65),
+        //     MonoTextStyle::new(&FONT_6X12, Rgb565::WHITE/*BinaryColor::Off*/),
+        // )
+        //     .draw(&mut disp);
         // sclk_pin.toggle();
         arduino_hal::delay_ms(1000);
     }
