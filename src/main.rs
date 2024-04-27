@@ -6,17 +6,17 @@ use panic_halt as _;
 
 mod lcd;
 
-use arduino_hal::prelude::{_embedded_hal_blocking_spi_Write, _unwrap_infallible_UnwrapInfallible};
+use arduino_hal::prelude::{_embedded_hal_blocking_spi_Write, _embedded_hal_serial_Read, _unwrap_infallible_UnwrapInfallible};
 use arduino_hal::{hal, Spi};
 use arduino_hal::hal::delay::Delay;
 use arduino_hal::spi::{DataOrder, SerialClockRate, Settings};
 use embedded_graphics::geometry::Point;
 use embedded_hal::digital::OutputPin;
 use embedded_hal::spi;
- use crate::lcd::lcd::{Orientation, ST7735};
+use crate::lcd::lcd::{Orientation, ST7735};
 use embedded_graphics::{
     mono_font::{
-         MonoTextStyleBuilder,
+        MonoTextStyleBuilder,
     },
     prelude::*,
     text::Text,
@@ -36,10 +36,10 @@ fn main() -> ! {
     let dp = arduino_hal::Peripherals::take().unwrap();
     let pins = arduino_hal::pins!(dp);
     // let pinss = arduino_hal::pins!(dp.USART0);
-    let mut serial = arduino_hal::default_serial!(dp, pins, 57600);
+    let mut serial = arduino_hal::default_serial!(dp, pins, 19200);
 
 
-   ufmt::uwriteln!(&mut serial, "Start program! {} \r",1).unwrap_infallible();
+    ufmt::uwriteln!(&mut serial, "Start program! {} \r",1).unwrap_infallible();
 
     let mut sclk_pin = pins.d13.into_output();
     let mosi_pin = pins.d11.into_output();
@@ -72,7 +72,7 @@ fn main() -> ! {
     disp.init(&mut delay).unwrap();
     disp.set_offset(2, 1);
     disp.clear(Rgb565::BLACK).unwrap();
-    _=Text::new(
+    _ = Text::new(
         "Hello 6x12!",
         Point::new(15, 45),
         MonoTextStyle::new(&FONT_6X12, Rgb565::WHITE/*BinaryColor::Off*/),
@@ -92,8 +92,32 @@ fn main() -> ! {
     let mut count = 0;
     loop {
         // let b = nb::block!(serial.read()).unwrap_infallible();
+
+        let mut b = 0;
+        match serial.read() {
+            Ok(byte) => {
+                // Successfully read a byte
+                b = byte;
+            }
+            Err(nb::Error::WouldBlock) => {
+                // Operation would block, handle according to your needs
+                _ = Text::new(
+                    "No data available yet",
+                    Point::new(15, 100),
+                    MonoTextStyle::new(&FONT_6X12, Rgb565::RED/*BinaryColor::Off*/),
+                ).draw(&mut disp);
+            }
+            Err(nb::Error::Other(e)) => {
+                // Handle other types of errors (like framing or overrun errors)
+                _ = Text::new(
+                    "Error reading data",
+                    Point::new(15, 100),
+                    MonoTextStyle::new(&FONT_6X12, Rgb565::RED/*BinaryColor::Off*/),
+                ).draw(&mut disp);
+            }
+        }
         //
-        // ufmt::uwriteln!(&mut serial, "Got {}!\r", b).unwrap_infallible();
+        ufmt::uwriteln!(&mut serial, "Got {}!\r", b).unwrap_infallible();
 
 
         count += 1;
@@ -104,8 +128,7 @@ fn main() -> ! {
         let result = concat_strs_simple("Hello 6x12! ", s);
         let message = core::str::from_utf8(&result).unwrap();
         // let message = sprinft!("Hello 6x12! {}", count);
-        _=Text::new(
-
+        _ = Text::new(
             message,
             Point::new(15, 65),
             MonoTextStyle::new(&FONT_6X12, Rgb565::WHITE/*BinaryColor::Off*/),
@@ -113,15 +136,28 @@ fn main() -> ! {
             .draw(&mut disp);
 
         // let b_char = core::str::from_utf8(&[b]).unwrap().trim();
-        // _=Text::new(
-        //
-        //     b_char,
-        //     Point::new(15, 65),
-        //     MonoTextStyle::new(&FONT_6X12, Rgb565::WHITE/*BinaryColor::Off*/),
-        // )
+        if b == 0 {
+            ufmt::uwriteln!(&mut serial, "b is 0!\r").unwrap_infallible();
+            _ = Text::new(
+                "b is 0",
+                Point::new(15, 85),
+                MonoTextStyle::new(&FONT_6X12, Rgb565::RED/*BinaryColor::Off*/),
+            ).draw(&mut disp);
+            arduino_hal::delay_ms(500);
+            continue;
+        }
+        let mut buffer = [0; 4]; // Create a buffer to hold the UTF-8 bytes
+        let b_char = b as char;
+        // Encode the character as UTF-8 into the buffer and get the slice containing the bytes
+        let string_slice = b_char.encode_utf8(&mut buffer);
+        _ = Text::new(
+            string_slice,
+            Point::new(15, 85),
+            MonoTextStyle::new(&FONT_6X12, Rgb565::RED/*BinaryColor::Off*/),
+        ).draw(&mut disp);
         //     .draw(&mut disp);
         // sclk_pin.toggle();
-        arduino_hal::delay_ms(1000);
+        arduino_hal::delay_ms(500);
     }
 }
 
